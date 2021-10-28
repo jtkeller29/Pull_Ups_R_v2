@@ -1,6 +1,6 @@
 ---
 title: "CivicEngagement"
-author: "Alicia Seeley"
+author: "Alicia Seeley, Alec Martinez, JT Keller"
 date: "10/28/2021"
 output: html_document
 ---
