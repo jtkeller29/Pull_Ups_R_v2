@@ -35,18 +35,17 @@ Our sample population includes adults in the US who participated in the IPUMS co
 
 ### 3. Trust in People in Neighborhood
 
+### 4. Frequency of talking to neighbors
+
+### 5. Frequency of doing favors for neighbors and vice versa
+
 ## Continuous Variables
 
-### 1. Units in Structure
+### 1. Household Income
 
-#### number of units in individual's housing structure
+### 2. Age
 
-### 2. Frequency of doing favors for neighbors and vice versa
-
-### 3. Frequency of talking to neighbors
-
-
-
+### 3. Property Taxes
 
 
 # Data Import
