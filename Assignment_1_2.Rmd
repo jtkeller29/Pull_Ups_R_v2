@@ -72,18 +72,9 @@ library(gridExtra)
 ## Read in .dat file from IPUMS
 
 ```{r, message=FALSE, warning=FALSE}
-ddi <- read_ipums_ddi("cps_00003.xml")
+ddi <- read_ipums_ddi("cps_00004.xml")
 data <- read_ipums_micro(ddi)
 ```
-
-
-```{r}
-svy_data <- data %>%
-  as_survey_design(ids = NULL,
-                   strata = NULL,
-                   weights = WTFINL)
-```
-
 
 
 ```{r}
@@ -199,18 +190,27 @@ pretty_tax_hist = tax_hist +
 grid.arrange(pretty_income_hist, pretty_age_hist, pretty_tax_hist,
              ncol = 3)
 ```
+
 ```{r}
 data <- data %>% 
-  mutate(HHTENURE = case_when(`HHTENURE` == 0 ~ "NIU",
+  mutate(HHTENURE1 = case_when(`HHTENURE` == 0 ~ "NIU",
                           `HHTENURE` == 1 ~ "Owned or being bought",
                           `HHTENURE` == 2 ~ "Rented for cash",
                           `HHTENURE` == 3 ~ "Occupied without payment or cash rent",
                           `HHTENURE` == 6 ~ "Refused",
                           `HHTENURE` == 7 ~ "Don't know",
                           TRUE ~ "unknown"))
+```
 
+```{r}
+pct_tenure_owned <- t.test(data$HHTENURE1 == "Owned or being bought")
+pct_tenure_rented <- t.test(data$HHTENURE1 == "Rented for cash")
+pct_tenure_freeload <-t.test(data$HHTENURE1 == "Occupied without payment or cash rent")
+pct_tenure_other <-t.test(data$HHTENURE1 == c("NIU", "Refused", "Don't Know"))
+```
+```{r}
 data <- data %>% 
-  mutate(CENEIGHCONF = case_when(`CENEIGHCONF` == 0 ~ "NIU",
+  mutate(CENEIGHCONF1 = case_when(`CENEIGHCONF` == 0 ~ "NIU",
                           `CENEIGHCONF` == 1 ~ "Trust none of the People",
                           `CENEIGHCONF` == 2 ~ "Trust some of the People",
                           `CENEIGHCONF` == 3 ~ "Trust most of the People",
@@ -220,9 +220,22 @@ data <- data %>%
                           `CENEIGHCONF` == 98 ~ "No Response",
                           `CENEIGHCONF` == 99 ~ "NIU",
                           TRUE ~ "unknown"))
+```
 
+
+
+```{r}
+pct_trust_none <- t.test(data$CENEIGHCONF1 == "Trust none of the People")
+pct_trust_some <- t.test(data$CENEIGHCONF1 == "Trust some of the People")
+pct_trust_most <- t.test(data$CENEIGHCONF1 == "Trust most of the People")
+pct_trust_all <- t.test(data$CENEIGHCONF1 == "Trust all of the People")
+pct_trust_other <- t.test(data$CENEIGHCONF1 == c("Refused", "Don't know", "No Response", "NIU", "unknown"))
+```
+
+
+```{r}
 data <- data %>% 
-  mutate(CESOCIALIZE = case_when(`CESOCIALIZE` == 0 ~ "NIU",
+  mutate(CESOCIALIZE1 = case_when(`CESOCIALIZE` == 0 ~ "NIU",
                           `CESOCIALIZE` == 1 ~ "Not at all",
                           `CESOCIALIZE` == 2 ~ "Less than once a month",
                           `CESOCIALIZE` == 3 ~ "Once a month",
@@ -238,9 +251,107 @@ data <- data %>%
 
 
 ```{r}
+pct_social_not <- t.test(data$CESOCIALIZE1 == "Not at all")
+pct_social_less <- t.test(data$CESOCIALIZE1 == "Less than once a month")
+pct_social_once <- t.test(data$CESOCIALIZE1 == "Once a month")
+pct_social_few <- t.test(data$CESOCIALIZE1 == "A few times a month")
+pct_social_week <- t.test(data$CESOCIALIZE1 == "A few times a week")
+pct_social_day <- t.test(data$CESOCIALIZE1 == "Basically every day")
+pct_social_other <- t.test(data$CESOCIALIZE1 == c("Refused", "Don't Know", "No Response", "NIU"))
 
 ```
 
+
+
+```{r}
+summary_tenure <-tibble(`Household Tenure` = 
+                              c("Owned or being bought",
+                                "Rented for cash",
+                                "Occupied without payment or cash rent",
+                                "NIU, Refused, Don't know"),
+                            `Sample proportion` = 
+                              c(pct_tenure_owned$estimate * 100,
+                                pct_tenure_rented$estimate * 100,
+                                pct_tenure_freeload$estimate * 100,
+                                pct_tenure_other$estimate * 100),
+                            `95-percent confidence - low` = 
+                              c(pct_tenure_owned$conf.int[1] * 100,
+                                pct_tenure_rented$conf.int[1] * 100,
+                                pct_tenure_freeload$conf.int[1] * 100,
+                                pct_tenure_other$conf.int[1] * 100),
+                            `95-percent confidence - high` = 
+                              c(pct_tenure_owned$conf.int[2] * 100,
+                                pct_tenure_rented$conf.int[2] * 100,
+                                pct_tenure_freeload$conf.int[2] * 100,
+                                pct_tenure_other$conf.int[2] * 100))
+
+kable(summary_tenure, digits = 0)
+```
+
+```{r}
+summary_trust <-tibble(`Neighborhood Trust` = 
+                              c("Trust none of the people",
+                                "Trust some of the people",
+                                "Trust most of the people",
+                                "Trust all of the people",
+                                "Refused, Don't Know, No Response, NIU"),
+                            `Sample proportion` = 
+                              c(pct_trust_none$estimate * 100,
+                                pct_trust_some$estimate * 100,
+                                pct_trust_most$estimate * 100,
+                                pct_trust_all$estimate * 100,
+                                pct_trust_other$estimate * 100),
+                            `95-percent confidence - low` = 
+                              c(pct_trust_none$conf.int[1] * 100,
+                                pct_trust_some$conf.int[1] * 100,
+                                pct_trust_most$conf.int[1] * 100,
+                                pct_trust_all$conf.int[1] * 100,
+                                pct_trust_other$conf.int[1] * 100),
+                            `95-percent confidence - high` = 
+                              c(pct_trust_none$conf.int[2] * 100,
+                                pct_trust_some$conf.int[2] * 100,
+                                pct_trust_most$conf.int[2] * 100,
+                                pct_trust_all$conf.int[2] * 100,
+                                pct_trust_other$conf.int[2] * 100))
+
+kable(summary_trust, digits = 0)
+```
+```{r}
+summary_social <-tibble(`Social Neighbors` = 
+                              c("Not at all",
+                                "Less than once a month",
+                                "Once a month",
+                                "A few times a month",
+                                "A few times a week",
+                                "Basically every day",
+                                "Refused, Don't Know, No Response, NIU"),
+                            `Sample proportion` = 
+                              c(pct_social_not$estimate * 100,
+                                pct_social_less$estimate * 100,
+                                pct_social_once$estimate * 100,
+                                pct_social_few$estimate * 100,
+                                pct_social_week$estimate * 100,
+                                pct_social_day$estimate * 100,
+                                pct_social_other$estimate * 100),
+                            `95-percent confidence - low` = 
+                              c(pct_social_not$conf.int[1] * 100,
+                                pct_social_less$conf.int[1] * 100,
+                                pct_social_once$conf.int[1] * 100,
+                                pct_social_few$conf.int[1] * 100,
+                                pct_social_week$conf.int[1] * 100,
+                                pct_social_day$conf.int[1] * 100,
+                                pct_social_other$conf.int[1] * 100),
+                            `95-percent confidence - high` = 
+                              c(pct_social_not$conf.int[2] * 100,
+                                pct_social_less$conf.int[2] * 100,
+                                pct_social_once$conf.int[2] * 100,
+                                pct_social_few$conf.int[2] * 100,
+                                pct_social_week$conf.int[2] * 100,
+                                pct_social_day$conf.int[2] * 100,
+                                pct_social_other$conf.int[2] * 100))
+
+kable(summary_social, digits = 0)
+```
 
 # References
 
