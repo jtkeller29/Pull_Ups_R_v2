@@ -197,6 +197,8 @@ data <- data %>%
                           TRUE ~ "unknown"))
 ```
 
+# STOP HERE
+
 ```{r}
 pct_tenure_owned <- t.test(data$HHTENURE1 == "Owned or being bought")
 pct_tenure_rented <- t.test(data$HHTENURE1 == "Rented for cash")
