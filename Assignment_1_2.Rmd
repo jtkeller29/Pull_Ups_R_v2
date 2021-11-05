@@ -285,7 +285,7 @@ summary_tenure <-tibble(`Household Tenure` =
                                 pct_tenure_freeload$conf.int[2] * 100,
                                 pct_tenure_other$conf.int[2] * 100))
 
-kable(summary_tenure, digits = 0)
+kable(summary_tenure, digits = 2)
 ```
 
 ```{r}
@@ -314,7 +314,7 @@ summary_trust <-tibble(`Neighborhood Trust` =
                                 pct_trust_all$conf.int[2] * 100,
                                 pct_trust_other$conf.int[2] * 100))
 
-kable(summary_trust, digits = 0)
+kable(summary_trust, digits = 2)
 ```
 ```{r}
 summary_social <-tibble(`Social Neighbors` = 
@@ -350,9 +350,11 @@ summary_social <-tibble(`Social Neighbors` =
                                 pct_social_day$conf.int[2] * 100,
                                 pct_social_other$conf.int[2] * 100))
 
-kable(summary_social, digits = 0)
+kable(summary_social, digits = 2)
 ```
-
+ 
+ The bucket for "unknown" - which includes respondents who refused to answer or responded 'don't know' - represents over 90% of the data for the two categorical measures of social ties (trust in neighbors; conversations with neighbors). This might render the dataset meaningless for our purposes, unless we are able to remove the "unknown" data points from the analysis and go with that significantly smaller n value....
+ 
 # References
 
 Werner, Inga Britt, and Kerstin Klingborg. "Studying Social Capital In Housing Neighborhoods-Does Tenure Matter?." (2010).
