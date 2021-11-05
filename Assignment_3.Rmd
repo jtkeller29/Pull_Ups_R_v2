@@ -66,6 +66,7 @@ library(survey)
 library(srvyr)
 library(ggplot2)
 library(gridExtra)
+library(nnet)
 ```
 
 
@@ -83,6 +84,22 @@ data <- data %>% drop_na(CENEIGHCONF)
 ```
 
 ```{r}
+data <- data %>% filter(CENEIGHCONF != 99)
+```
+
+```{r}
+data <- data %>% filter(CENEIGHCONF != 96)
+```
+
+```{r}
+data <- data %>% filter(CENEIGHCONF != 97)
+```
+
+```{r}
+data <- data %>% filter(CENEIGHCONF != 98)
+```
+
+```{r}
 data = subset(data, select = -c(ASECFLAG,ASECWTH,GQ,OWNERSHP,HHINCOME,PROPTAX,PUBHOUS,UNITSSTR,ASECWT))
 ```
 
@@ -91,100 +108,10 @@ data = subset(data, select = -c(ASECFLAG,ASECWTH,GQ,OWNERSHP,HHINCOME,PROPTAX,PU
 kable(head(data))
 ```
 
-# Descriptive Statistics
-
-## Continuous variables
-
-The continuous variables in our study are 1) household income, 2) age, 3) property tax.
-
-### Calculations
-
-#### t tests (including confidence interval)
-
-```{r}
-#income_t_test <- t.test(data$HHINCOME)
-#age_t_test <- t.test(data$AGE)
-#tax_t_test <- t.test(data$PROPTAX)
-famincome_t_test <- t.test(data$FAMINC)
-age_t_test <- t.test (data$AGE)
-
-```
-
-
-#### quantiles (including median and interquartile range)
-
-```{r}
-income_quartiles <- quantile(data$FAMINC, na.rm = TRUE)
-age_quartiles <- quantile(data$AGE, na.rm = TRUE)
-
-```
-
-
-#### standard deviation
-
-```{r}
-income_sd <- sd(data$FAMINC, na.rm = TRUE)
-age_sd <- sd(data$AGE, na.rm = TRUE)
-
-```
-
-#### histograms
-
-```{r}
-income_hist <- ggplot(data) +
-  geom_histogram(aes(x = FAMINC)) 
-
-#+
- # scale_x_continuous(trans = "log")
-
-age_hist <- ggplot(data) +
-  geom_histogram(aes(x = AGE))
-
-
-```
-
-
-### Displaying Data
-
-```{r}
-cont_summary <- tibble(
-  Variable = c("Household income", 
-               "Age"),
-  `Sample mean` = c(famincome_t_test$estimate,
-                    age_t_test$estimate),
-  `Population mean (95% confidence) - low` = 
-    c(famincome_t_test$conf.int[1],
-      age_t_test$conf.int[1]),
-  `Population mean (95% confidence) - high` =
-    c(famincome_t_test$conf.int[2],
-      age_t_test$conf.int[2]),
-  Median = c(income_quartiles[3],
-             age_quartiles[3]),
-  `Interquartile range` = c(income_quartiles[4] - income_quartiles[2], age_quartiles[4] - age_quartiles[2]),
-  `Standard deviation` = c(income_sd,
-                          age_sd))
-
-kable(cont_summary, digits = 0)
-```
 
 
 
-```{r}
-pretty_income_hist <- income_hist +
-  theme_bw() +
-  scale_x_continuous(name = "Family Median income",
-                     trans = "log") +
-  scale_y_continuous(name = "Number of people") +
-  theme(axis.text.x = element_text(angle = 90))
 
-pretty_age_hist <- age_hist +
-  theme_bw() + 
-  scale_x_continuous(name = "Age") +
-  scale_y_continuous(name = "Number of people") +
-  theme(axis.text.x = element_text(angle = 90))
-
-grid.arrange(pretty_income_hist, pretty_age_hist, ncol = 2)
-```
 
 ```{r}
 data <- data %>% 
@@ -315,6 +242,8 @@ summary_trust <-tibble(`Neighborhood Trust` =
 
 kable(summary_trust, digits = 0)
 ```
+
+
 ```{r}
 summary_social <-tibble(`Social Neighbors` = 
                               c("Not at all",
@@ -351,6 +280,25 @@ summary_social <-tibble(`Social Neighbors` =
 
 kable(summary_social, digits = 0)
 ```
+# Bivariate Analysis
+
+```{r}
+cor.test(~ CENEIGHCONF + HHTENURE, data = data)
+```
+
+```{r}
+chisq.test(data$CENEIGHCONF, data$HHTENURE, correct = FALSE)
+```
+```{r}
+chisq.test(data$CESOCIALIZE, data$HHTENURE, correct = FALSE)
+```
+```{r}
+#data$CENEIGHCONF2 <- relevel(data$CENEIGHCONF1, ref = "Trust None of the People")
+test <- multinom(CENEIGHCONF1 ~ HHTENURE1, data = data)
+```
+```{r}
+summary(test)
+e ```
 
 
 
