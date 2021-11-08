@@ -1,0 +1,135 @@
+---
+title: "Assignment 1: Research Questions"
+author: "Alicia Seeley, JT Keller, Alec Martinez"
+date: "10/20/2021"
+output: 
+  html_document:
+    theme: readable
+    toc: true
+    toc_depth: 4
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Research Question to Answer with Regression
+
+Linear: How, if at all, is household income, property tax, and age related to neighborhood social ties?
+
+Logistic: How, if at all, is housing tenure related to neighborhood social ties. 
+
+# Prior Research
+
+Linear model: We have identified a study that 
+
+We have identified two studies that show a positive relationship between housing tenure and different measures of social engagement. Levitten-Reid and Matthew (2018), using a sample from Canada, find "a positive association between home ownership and forms of bonding social capital". Similarly, Werner and Klingborg (2010), in a study conducted of Stockholm, Sweden, found results indicating that "residents forming tenant-owners associations have more trust in neighbors in the neighborhood."
+
+
+# Sample Population and Variables
+
+Our sample population includes adults in the US who participated in the IPUMS community civic engagement survey in November 2013.
+
+## Categorial Variables
+
+1. Housing Tenure
+
+2. Participated in a service or civic organization
+
+3. Trust in People in Neighborhood
+
+4. Frequency of talking to neighbors
+
+5. Frequency of doing favors for neighbors and vice versa
+
+## Continuous Variables
+
+1. Household Income
+
+2. Age
+
+3. Property Taxes
+
+
+# Data Import
+
+## Load Libraries
+
+```{r, message=FALSE}
+library(tidyverse)
+library(tidycensus)
+library(readxl)
+library(knitr)
+library(ipumsr)
+library(survey)
+library(srvyr)
+library(ggplot2)
+library(gridExtra)
+```
+
+
+## Read in .dat file from IPUMS
+
+```{r, message=FALSE, warning=FALSE}
+ddi <- read_ipums_ddi("cps_00004.xml")
+data <- read_ipums_micro(ddi)
+```
+
+# Clean Data
+
+```{r}
+data <- data %>% drop_na(CENEIGHCONF)
+```
+
+
+```{r}
+data <- data %>% 
+  mutate(CENEIGHCONF1 = case_when(`CENEIGHCONF` == 0 ~ "NIU",
+                          `CENEIGHCONF` == 1 ~ "Trust none of the People",
+                          `CENEIGHCONF` == 2 ~ "Trust some of the People",
+                          `CENEIGHCONF` == 3 ~ "Trust most of the People",
+                          `CENEIGHCONF` == 6 ~ "Trust all of the People",
+                          `CENEIGHCONF` == 96 ~ "Refused",
+                          `CENEIGHCONF` == 97 ~ "Don't know",
+                          `CENEIGHCONF` == 98 ~ "No Response",
+                          `CENEIGHCONF` == 99 ~ "NIU",
+                          TRUE ~ "unknown"))
+```
+
+
+Voulgaris edits
+
+```{r}
+data_subset <- data %>%
+  filter(CENEIGHCONF1 != "NIU") %>%
+  mutate(conf_2level = case_when(CENEIGHCONF1 == "Trust most of the People" ~ TRUE,
+                                 CENEIGHCONF1 == "Trust all of the People" ~ TRUE,
+                                 TRUE ~ FALSE))
+
+svy_data <- data_subset %>%
+  as_survey_design(weights = WTFINL)
+
+
+county_level <- svy_data %>%
+  group_by(COUNTY) %>%
+  srvyr::summarize(mean = survey_mean(conf_2level),
+                   sample = n()) 
+```
+
+Get census data
+
+```{r}
+county_data <- get_acs(geography = "county", variables = c("B25003_003", "B25003_001"), output = 'wide') %>%
+  mutate(pct_rent = B25003_003E / B25003_001E)
+
+### FIX 4-digit FIPS codes by putting the leading zeros back on them,
+### the resulting FIPS code needs to be a string (as.character())
+### Name the resulting FIPS code GEOID
+
+### remand couty
+
+all_data <- left_join(county_level, county_data)
+
+```
+

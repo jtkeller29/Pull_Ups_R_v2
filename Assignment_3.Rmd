@@ -33,23 +33,23 @@ Our sample population includes adults in the US who participated in the IPUMS co
 
 ## Categorial Variables
 
-### 1. Housing Tenure
+1. Housing Tenure
 
-### 2. Participated in a service or civic organization
+2. Participated in a service or civic organization
 
-### 3. Trust in People in Neighborhood
+3. Trust in People in Neighborhood
 
-### 4. Frequency of talking to neighbors
+4. Frequency of talking to neighbors
 
-### 5. Frequency of doing favors for neighbors and vice versa
+5. Frequency of doing favors for neighbors and vice versa
 
 ## Continuous Variables
 
-### 1. Household Income
+1. Household Income
 
-### 2. Age
+2. Age
 
-### 3. Property Taxes
+3. Property Taxes
 
 
 # Data Import
@@ -75,7 +75,9 @@ library(gridExtra)
 ddi <- read_ipums_ddi("cps_00004.xml")
 data <- read_ipums_micro(ddi)
 ```
+
 # Clean Data
+
 ```{r}
 data <- data %>% drop_na(CENEIGHCONF)
 ```
