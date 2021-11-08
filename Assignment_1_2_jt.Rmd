@@ -81,7 +81,7 @@ data <- read_ipums_micro(ddi)
 svy_data <- data %>%
   as_survey_design(ids = NULL,
                    strata = NULL,
-                   weights = WTFINL)
+                   weights = HWTFINL)
 ```
 
 
