@@ -1,0 +1,324 @@
+---
+title: "Assignment 1: Research Questions"
+author: "Alicia Seeley, JT Keller, Alec Martinez"
+date: "10/20/2021"
+output: 
+  html_document:
+    theme: readable
+    toc: true
+    toc_depth: 4
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Research Question to Answer with Regression
+
+How, if at all, is housing tenure related to neighborhood social ties. 
+
+# Prior Research
+
+We have identified two studies that show a positive relationship between housing tenure and different measures of social engagement. Levitten-Reid and Matthew (2018), using a sample from Canada, find "a positive association between home ownership and forms of bonding social capital". Similarly, Werner and Klingborg (2010), in a study conducted of Stockholm, Sweden, found results indicating that "residents forming tenant-owners associations have more trust in neighbors in the neighborhood."
+
+
+# Sample Population and Variables
+
+Our sample population includes adults in the US who participated in the IPUMS community civic engagement survey in November 2013.
+
+## Continuous Variables (adapted from categorical variables)
+
+1. Housing Tenure
+
+2. Trust in People in Neighborhood
+
+
+
+## Categorical Variables (adapted from continuous variables)
+
+1. Household Income
+
+
+
+
+# Data Import
+
+## Load Libraries
+
+```{r, message=FALSE}
+library(tidyverse)
+library(tidycensus)
+library(readxl)
+library(knitr)
+library(ipumsr)
+library(survey)
+library(srvyr)
+library(ggplot2)
+library(gridExtra)
+```
+
+
+## Read in .dat file from IPUMS
+
+```{r, message=FALSE, warning=FALSE}
+ddi <- read_ipums_ddi("cps_00004.xml")
+data <- read_ipums_micro(ddi)
+```
+
+# Clean Data
+
+```{r}
+data <- data %>% drop_na(CENEIGHCONF)
+```
+
+
+```{r}
+data <- data %>% 
+  mutate(CENEIGHCONF1 = case_when(`CENEIGHCONF` == 0 ~ "NIU",
+                          `CENEIGHCONF` == 1 ~ "Trust none of the People",
+                          `CENEIGHCONF` == 2 ~ "Trust some of the People",
+                          `CENEIGHCONF` == 3 ~ "Trust most of the People",
+                          `CENEIGHCONF` == 6 ~ "Trust all of the People",
+                          `CENEIGHCONF` == 96 ~ "Refused",
+                          `CENEIGHCONF` == 97 ~ "Don't know",
+                          `CENEIGHCONF` == 98 ~ "No Response",
+                          `CENEIGHCONF` == 99 ~ "NIU",
+                          TRUE ~ "unknown"))
+```
+
+```{r}
+data <- data %>% 
+  mutate(INCOME_BINS = case_when(`FAMINC` == 100 ~ "Poor",
+                          `FAMINC` == 110 ~ "Poor",
+                         `FAMINC` == 111 ~ "Poor",
+                          `FAMINC` == 112 ~ "Poor",
+                           `FAMINC` == 120 ~ "Poor",
+                           `FAMINC` == 121 ~ "Poor",
+                           `FAMINC` == 122 ~ "Poor",
+                           `FAMINC` == 130 ~ "Poor",
+                           `FAMINC` == 131 ~ "Poor",
+                          `FAMINC` == 132 ~ "Poor",
+                          `FAMINC` == 140 ~ "Poor",
+                          `FAMINC` == 141 ~ "Poor",
+                          `FAMINC` == 142 ~ "Poor",
+                          `FAMINC` == 150 ~ "Poor",
+                          `FAMINC` == 200 ~ "Poor",
+                          `FAMINC` == 210 ~ "Poor",
+                          `FAMINC` == 220 ~ "Poor",
+                          `FAMINC` == 230 ~ "Poor",
+                          `FAMINC` == 231 ~ "Poor",
+                          `FAMINC` == 232 ~ "Poor",
+                          `FAMINC` == 233 ~ "Poor",
+                          `FAMINC` == 234 ~ "Poor",
+                          `FAMINC` == 300 ~ "Poor",
+                          `FAMINC` == 310 ~ "Poor",
+                          `FAMINC` == 320 ~ "Poor",
+                          `FAMINC` == 330 ~ "Poor",
+                          `FAMINC` == 340 ~ "Poor",
+                          `FAMINC` == 350 ~ "Poor",
+                          `FAMINC` == 400 ~ "Poor",
+                          `FAMINC` == 410 ~ "Poor",
+                          `FAMINC` == 420 ~ "Poor",
+                          `FAMINC` == 430 ~ "Poor",
+                          `FAMINC` == 440 ~ "Poor",
+                          `FAMINC` == 450 ~ "Poor",
+                          `FAMINC` == 460 ~ "Poor",
+                          `FAMINC` == 470 ~ "Poor",
+                          `FAMINC` == 480 ~ "Poor",
+                          `FAMINC` == 490 ~ "Poor",
+                          `FAMINC` == 500 ~ "Poor",
+                          `FAMINC` == 510 ~ "Poor",
+                          `FAMINC` == 520 ~ "Poor",
+                          `FAMINC` == 530 ~ "Poor",
+                          `FAMINC` == 540 ~ "Poor",
+                          `FAMINC` == 550 ~ "Poor",
+                          `FAMINC` == 560 ~ "Poor",
+                          `FAMINC` == 600 ~ "Poor",
+                          `FAMINC` == 700 ~ "Poor",
+                          `FAMINC` == 710 ~ "Poor",
+                          `FAMINC` == 720 ~ "Lower Middle",
+                         `FAMINC` == 730 ~ "Lower Middle",
+                         `FAMINC` == 740 ~ "Lower Middle",
+                         `FAMINC` == 800 ~ "Middle",
+                         `FAMINC` == 810 ~ "Middle",
+                         `FAMINC` == 820 ~ "Middle",
+                         `FAMINC` == 830 ~ "Middle",
+                         `FAMINC` == 840 ~ "Middle",
+                         `FAMINC` == 841 ~ "Middle",
+                         `FAMINC` == 842 ~ "Upper to rich",
+                         `FAMINC` == 843 ~ "Upper to rich",
+                         `FAMINC` == 995 ~ "Missing",
+                          `FAMINC` == 996 ~ "Missing",
+                          `FAMINC` == 997 ~ "Missing",
+                          `FAMINC` == 999 ~ "Missing",
+                          TRUE ~ "unknown")) %>% 
+  filter(INCOME_BINS != "Missing")
+```
+
+
+```{r}
+data_subset <- data %>%
+  filter(CENEIGHCONF1 != "NIU") %>%
+  mutate(conf_2level = case_when(CENEIGHCONF1 == "Trust most of the People" ~ TRUE,
+                                 CENEIGHCONF1 == "Trust all of the People" ~ TRUE,
+                                 TRUE ~ FALSE))
+
+svy_data <- data_subset %>%
+  as_survey_design(weights = WTFINL)
+
+
+county_level <- svy_data %>%
+  group_by(COUNTY) %>%
+  srvyr::summarize(mean = survey_mean(conf_2level),
+                   sample = n()) 
+```
+
+
+
+Get census data
+
+```{r}
+county_data <- get_acs(geography = "county", variables = c("B25003_003", "B25003_001"), output = 'wide') %>%
+  mutate(pct_rent = B25003_003E / B25003_001E)
+```
+
+
+```{r}
+county_level <- county_level %>% 
+mutate(GEOID = case_when(str_length(as.character(COUNTY)) == 5 ~ 
+                            as.character(COUNTY),
+                          str_length(as.character(COUNTY)) == 4 ~
+                            paste("0", COUNTY, sep=""),
+                          TRUE ~ "not a county")) %>%
+  filter(GEOID != "not a county")
+```
+
+### FIX 4-digit FIPS codes by putting the leading zeros back on them,
+### the resulting FIPS code needs to be a string (as.character())
+### Name the resulting FIPS code GEOID
+
+
+
+```{r}
+all_data <- left_join(county_level, county_data)
+
+```
+
+```{r}
+kable(head(all_data))
+```
+
+## Descriptive Statistics
+
+### Continuous Variables
+
+Failure with srvyr:
+
+pct_rent_mean <- all_data %>%
+  srvyr::summarize(mean = survey_mean(pct_rent, vartype = c("ci", "var"), na.rm = TRUE))
+
+trust_mean <- all_data %>%
+  srvyr::summarize(mean = survey_mean(mean, vartype = c("ci", "var"), na.rm = TRUE))
+
+
+Running into errors with the srvyr package so for now we are calculating our t tests with the t.test function
+
+```{r}
+rent_ttest <- t.test(all_data$pct_rent)
+
+trust_ttest <- t.test(all_data$mean)
+```
+
+```{r}
+rent_quartiles <- quantile(all_data$pct_rent, na.rm = TRUE)
+trust_quartiles <- quantile(all_data$mean, na.rm = TRUE)
+```
+
+```{r}
+rent_sd <- sd(all_data$pct_rent, na.rm = TRUE)
+trust_sd <- sd(all_data$mean, na.rm = TRUE)
+```
+
+```{r}
+rent_hist <- ggplot(all_data) +
+  geom_histogram(aes(x = pct_rent),
+                 bins = 30)
+```
+
+```{r}
+trust_hist <- ggplot(all_data) +
+  geom_histogram(aes(x = mean),
+                 bins = 30)
+```
+
+```{r}
+summary <- tibble(
+  Variable = c("Percentage of people who trust their neighbors (by county)", 
+               "Percentage of renters (by county)"),
+  `Sample mean` = c(trust_ttest$estimate,
+                    rent_ttest$estimate),
+  `Population mean (95% confidence) - low` = 
+    c(trust_ttest$conf.int[1],
+      rent_ttest$conf.int[1]),
+  `Population mean (95% confidence) - high` =
+    c(trust_ttest$conf.int[2],
+      rent_ttest$conf.int[2]),
+  Median = c(trust_quartiles[3],
+             rent_quartiles[3]),
+  `Interquartile range` = c(trust_quartiles[4] - trust_quartiles[2],
+                            rent_quartiles[4] - rent_quartiles[2]),
+  `Standard deviation` = c(trust_sd,
+                          rent_sd))
+
+kable(summary, digits = 2)
+```
+
+```{r}
+pretty_trust_hist <- trust_hist +
+  theme_bw() +
+  scale_x_continuous(name = "percentage of ppl who trust neighbors") +
+  scale_y_continuous(name = "Number of counties") +
+  theme(axis.text.x = element_text(angle = 90))
+
+pretty_rent_hist <- rent_hist +
+  theme_bw() + 
+  scale_x_continuous(name = "Percentage of renters") +
+  scale_y_continuous(name = "Number of counties") +
+  theme(axis.text.x = element_text(angle = 90))
+
+grid.arrange(pretty_trust_hist, pretty_rent_hist,
+             ncol = 2)
+```
+
+### Categorical variables
+
+Still cleaning our categorical variables after starting over from scratch.
+
+## Bivariate Analysis
+
+### continuous variables
+
+```{r}
+cor.test(~ mean + pct_rent, data = all_data)
+
+```
+
+```{r}
+trust_model <- lm(mean ~ pct_rent, data = all_data)
+
+summary(trust_model)
+```
+
+### Categorical Variables
+
+(Sorry that our categorical variable is still WIP)
+
+
+# References
+
+Werner, Inga Britt, and Kerstin Klingborg. "Studying Social Capital In Housing Neighborhoods-Does Tenure Matter?." (2010).
+
+Leviten-Reid, Catherine, and Rebecca A. Matthew. "Housing tenure and neighbourhood social capital." Housing, Theory and Society 35, no. 3 (2018): 300-328.
+
+Sarah Flood, Miriam King, Renae Rodgers, Steven Ruggles, J. Robert Warren and Michael Westberry. Integrated Public Use Microdata Series, Current Population Survey: Version 9.0 [dataset]. Minneapolis, MN: IPUMS, 2021. https://doi.org/10.18128/D030.V9.0
