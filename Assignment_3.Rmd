@@ -133,6 +133,152 @@ pct_tenure_freeload <-t.test(data$HHTENURE1 == "Occupied without payment or cash
 pct_tenure_other <-t.test(data$HHTENURE1 == c("NIU", "Refused", "Don't Know"))
 ```
 
+#DESCRIPTIVE STATISTICS
+
+##CONTINUOUS VARIABLES
+
+Percent Renters
+Trust
+
+```{r}
+pct_rent_mean <- all_data %>%
+  srvyr::summarize(mean = survey_mean(pct_rent, vartype = c("ci", "var"), na.rm = TRUE))
+
+trust_mean <- all_data %>%
+  srvyr::summarize(mean = survey_mean(mean, vartype = c("ci", "var"), na.rm = TRUE))
+```
+
+```{r}
+rent_quants <- all_data %>%
+  srvyr::summarize(quants = survey_quantile(pct_rent, 
+                                     quantiles =  c(0.25, 0.5, 0.75),
+                                     vartype = NULL)) 
+
+trust_quants <- all_data %>%
+  srvyr::summarize(quants = survey_quantile(mean, 
+                                     quantiles =  c(0.25, 0.5, 0.75),
+                                     vartype = NULL)) 
+```
+
+```{r}
+mean_summary <- rbind(pct_rent_mean, trust_mean) %>%
+    mutate(variable = c("Percentage of Renters",
+                      "Percentage that trust Neighbors"))
+
+quant_summary <- rbind(rent_quants, trust_quants) %>%
+    mutate(variable = c("Percentage of Renters",
+                      "Percentage that trust Neighbors"))
+
+summary <- left_join(mean_summary, quant_summary) %>%
+  mutate(sd = mean_var^0.5) %>%
+  mutate(IQR = quants_q75 - quants_q25) %>%
+  rename(median = quants_q50) %>%
+  select(variable, mean, mean_low, mean_upp, median, sd, IQR)
+
+kable(summary, digits=2)
+```
+
+```{r}
+renters_hist <- svyhist(~pct_rent, design = all_data,
+                            freq = TRUE)
+```
+
+```{r}
+trust_hist <- svyhist(~mean, design = all_data,
+                            freq = TRUE)
+```
+
+```{r}
+renters_hist_df <- tibble(mids = renters_hist$mids,
+                              counts = renters_hist$counts)
+
+ggplot(renters_hist_df) +
+  geom_bar(aes(x = mids, y = counts),
+           stat = "identity") +
+  theme_bw() +
+  scale_x_continuous(name = "Percentage of Renters") +
+  scale_y_continuous(name = "Estimated number of people?")
+```
+
+```{r}
+trust_hist_df <- tibble(mids = trust_hist$mids,
+                              counts = trust_hist$counts)
+
+ggplot(trust_hist_df) +
+  geom_bar(aes(x = mids, y = counts),
+           stat = "identity") +
+  theme_bw() +
+  scale_x_continuous(name = "Percentage of People who trust neighbors") +
+  scale_y_continuous(name = "Estimated number of People")
+```
+
+##CATAGORICAL VARIABLE
+
+Income
+
+```{r}
+inc_shares <- all_data %>%
+  group_by(INCOME_BINS) %>%
+  srvyr::summarize(share = survey_prop(vartype = "ci"))
+
+kable(inc_shares, digits = 3)
+```
+
+# CORRELATIONS ON CONTINUOUS VARIABLES
+
+```{r}
+corrs <- svycor(~pct_rent + mean, design = all_data, sig.stats = TRUE)
+```
+
+```{r}
+corrs$cors
+```
+
+```{r}
+corrs$p.values
+```
+
+```{r}
+corrs$std.err
+```
+
+```{r}
+corrs_ci_low <- corrs$cors - 1.96*corrs$std.err
+
+corrs_ci_upp <- corrs$cors + 1.96*corrs$std.err
+```
+
+```{r}
+corrs_ci_low
+```
+
+```{r}
+corrs_ci_upp
+```
+
+#REGRESSION
+
+```{r}
+tenure_trust_model <- svyglm(pct_rent ~ mean, design = all_data)
+
+summary(tenure_model)
+```
+
+```{r}
+income_trust_model <- svyglm(INCOME_BINS ~ mean, design = all_data)
+
+summary(income_model)
+```
+
+
+
+
+
+
+
+
+
+
 
 ```{r}
 data <- data %>% 
