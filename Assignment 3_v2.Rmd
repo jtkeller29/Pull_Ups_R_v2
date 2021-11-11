@@ -131,8 +131,11 @@ income_quartile <- quantile(county_data$median_income, na.rm = TRUE)
 income_quartile
 ```
 ```{r}
-county_data$income_bins <- cut(county_data$median_income, breaks = c(0, 24000, 31000, Inf),
-                               labels = c("bottom quartile", "middle quartile", "upper quartile"))
+county_data$income_quartiles <- cut(county_data$median_income, breaks = c(0, 24000, 31000, Inf),
+                               labels = c("bottom quartile", "middle quartile", "upper quartile"), na.rm = TRUE)
+
+county_data$income_class <- cut(county_data$median_income, breaks = c(0, 40100, 120400, Inf),
+                               labels = c("low", "middle", "upper"), na.rm = TRUE)
 ```
 
 
