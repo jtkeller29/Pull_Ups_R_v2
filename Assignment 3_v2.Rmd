@@ -87,75 +87,6 @@ data <- data %>%
                           TRUE ~ "unknown"))
 ```
 
-```{r}
-data <- data %>% 
-  mutate(INCOME_BINS = case_when(`FAMINC` == 100 ~ "Poor",
-                          `FAMINC` == 110 ~ "Poor",
-                         `FAMINC` == 111 ~ "Poor",
-                          `FAMINC` == 112 ~ "Poor",
-                           `FAMINC` == 120 ~ "Poor",
-                           `FAMINC` == 121 ~ "Poor",
-                           `FAMINC` == 122 ~ "Poor",
-                           `FAMINC` == 130 ~ "Poor",
-                           `FAMINC` == 131 ~ "Poor",
-                          `FAMINC` == 132 ~ "Poor",
-                          `FAMINC` == 140 ~ "Poor",
-                          `FAMINC` == 141 ~ "Poor",
-                          `FAMINC` == 142 ~ "Poor",
-                          `FAMINC` == 150 ~ "Poor",
-                          `FAMINC` == 200 ~ "Poor",
-                          `FAMINC` == 210 ~ "Poor",
-                          `FAMINC` == 220 ~ "Poor",
-                          `FAMINC` == 230 ~ "Poor",
-                          `FAMINC` == 231 ~ "Poor",
-                          `FAMINC` == 232 ~ "Poor",
-                          `FAMINC` == 233 ~ "Poor",
-                          `FAMINC` == 234 ~ "Poor",
-                          `FAMINC` == 300 ~ "Poor",
-                          `FAMINC` == 310 ~ "Poor",
-                          `FAMINC` == 320 ~ "Poor",
-                          `FAMINC` == 330 ~ "Poor",
-                          `FAMINC` == 340 ~ "Poor",
-                          `FAMINC` == 350 ~ "Poor",
-                          `FAMINC` == 400 ~ "Poor",
-                          `FAMINC` == 410 ~ "Poor",
-                          `FAMINC` == 420 ~ "Poor",
-                          `FAMINC` == 430 ~ "Poor",
-                          `FAMINC` == 440 ~ "Poor",
-                          `FAMINC` == 450 ~ "Poor",
-                          `FAMINC` == 460 ~ "Poor",
-                          `FAMINC` == 470 ~ "Poor",
-                          `FAMINC` == 480 ~ "Poor",
-                          `FAMINC` == 490 ~ "Poor",
-                          `FAMINC` == 500 ~ "Poor",
-                          `FAMINC` == 510 ~ "Poor",
-                          `FAMINC` == 520 ~ "Poor",
-                          `FAMINC` == 530 ~ "Poor",
-                          `FAMINC` == 540 ~ "Poor",
-                          `FAMINC` == 550 ~ "Poor",
-                          `FAMINC` == 560 ~ "Poor",
-                          `FAMINC` == 600 ~ "Poor",
-                          `FAMINC` == 700 ~ "Poor",
-                          `FAMINC` == 710 ~ "Poor",
-                          `FAMINC` == 720 ~ "Lower Middle",
-                         `FAMINC` == 730 ~ "Lower Middle",
-                         `FAMINC` == 740 ~ "Lower Middle",
-                         `FAMINC` == 800 ~ "Middle",
-                         `FAMINC` == 810 ~ "Middle",
-                         `FAMINC` == 820 ~ "Middle",
-                         `FAMINC` == 830 ~ "Middle",
-                         `FAMINC` == 840 ~ "Middle",
-                         `FAMINC` == 841 ~ "Middle",
-                         `FAMINC` == 842 ~ "Upper to rich",
-                         `FAMINC` == 843 ~ "Upper to rich",
-                         `FAMINC` == 995 ~ "Missing",
-                          `FAMINC` == 996 ~ "Missing",
-                          `FAMINC` == 997 ~ "Missing",
-                          `FAMINC` == 999 ~ "Missing",
-                          TRUE ~ "unknown")) %>% 
-  filter(INCOME_BINS != "Missing")
-```
-
 
 ```{r}
 data_subset <- data %>%
@@ -179,8 +110,29 @@ county_level <- svy_data %>%
 Get census data
 
 ```{r}
-county_data <- get_acs(geography = "county", variables = c("B25003_003", "B25003_001"), output = 'wide') %>%
+acs_vars <- load_variables(2019, "acs5")
+```
+
+
+```{r}
+county_data <- get_acs(geography = "county", variables = c("B25003_003", "B25003_001", "B06011_001"), output = 'wide') %>%
   mutate(pct_rent = B25003_003E / B25003_001E)
+
+```
+```{r}
+county_data <- county_data %>% 
+  rename("median_income" = "B06011_001E")
+
+```
+
+```{r}
+income_quartile <- quantile(county_data$median_income, na.rm = TRUE)
+
+income_quartile
+```
+```{r}
+county_data$income_bins <- cut(county_data$median_income, breaks = c(0, 24000, 31000, Inf),
+                               labels = c("bottom quartile", "middle quartile", "upper quartile"))
 ```
 
 
@@ -213,16 +165,6 @@ kable(head(all_data))
 
 ### Continuous Variables
 
-Failure with srvyr:
-
-pct_rent_mean <- all_data %>%
-  srvyr::summarize(mean = survey_mean(pct_rent, vartype = c("ci", "var"), na.rm = TRUE))
-
-trust_mean <- all_data %>%
-  srvyr::summarize(mean = survey_mean(mean, vartype = c("ci", "var"), na.rm = TRUE))
-
-
-Running into errors with the srvyr package so for now we are calculating our t tests with the t.test function
 
 ```{r}
 rent_ttest <- t.test(all_data$pct_rent)
