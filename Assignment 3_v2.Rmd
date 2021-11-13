@@ -306,10 +306,40 @@ trust_model <- lm(mean ~ pct_rent, data = all_data)
 summary(trust_model)
 ```
 
-### Categorical Variables
+### Categorical Variable
 
 ```{r}
+t.test(x = all_data$mean[all_data$income_quartiles == "lower middle"], 
+       y = all_data$mean[all_data$income_quartiles == "upper quartile"])
+```
+```{r}
+t.test(x = all_data$mean[all_data$income_quartiles == "lower middle"], 
+       y = all_data$mean[all_data$income_quartiles == "middle quartile"])
+```
+```{r}
+t.test(x = all_data$mean[all_data$income_quartiles == "bottom quartile"], 
+       y = all_data$mean[all_data$income_quartiles == "upper quartile"])
+```
+```{r}
+income_model <- lm(mean ~ income_quartiles, data = all_data)
 
+summary(income_model)
+```
+```{r}
+all_data <- all_data %>%
+  mutate(income_quartiles = as.factor(income_quartiles)) %>%
+  mutate(income_quartiles = relevel(income_quartiles, "bottom quartile"))
+
+income_model2 <- lm(mean ~ income_quartiles, all_data)
+
+summary(income_model2)
+```
+# Multivariate regression
+
+```{r}
+full_model <- lm(mean ~ pct_rent + income_quartiles, all_data)
+
+summary(full_model)
 ```
 
 
