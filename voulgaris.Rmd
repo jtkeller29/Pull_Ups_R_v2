@@ -16,8 +16,6 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Research Question to Answer with Regression
 
-Linear: How, if at all, is household income, property tax, and age related to neighborhood social ties?
-
 Logistic: How, if at all, is housing tenure related to neighborhood social ties. 
 
 # Prior Research
@@ -132,4 +130,11 @@ county_data <- get_acs(geography = "county", variables = c("B25003_003", "B25003
 all_data <- left_join(county_level, county_data)
 
 ```
+```{r}
+paste0("0", county_level$COUNTY)
+```
 
+```{r}
+county_level1 <- county_level %>% 
+  mutate(COUNTY = paste0("0", county_level$COUNTY))
+```

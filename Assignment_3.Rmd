@@ -442,6 +442,8 @@ chisq.test(data$CESOCIALIZE, data$HHTENURE, correct = FALSE)
 #data$CENEIGHCONF2 <- relevel(data$CENEIGHCONF1, ref = "Trust None of the People")
 test <- multinom(CENEIGHCONF1 ~ HHTENURE1, data = data)
 ```
+
+
 ```{r}
 summary(test)
 e ```
