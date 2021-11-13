@@ -16,34 +16,43 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Research Question to Answer with Regression
 
-How, if at all, is housing tenure related to neighborhood social ties. 
+How, if at all, are housing tenure and income related to trust between neighbors? 
 
 # Prior Research
 
 We have identified two studies that show a positive relationship between housing tenure and different measures of social engagement. Levitten-Reid and Matthew (2018), using a sample from Canada, find "a positive association between home ownership and forms of bonding social capital". Similarly, Werner and Klingborg (2010), in a study conducted of Stockholm, Sweden, found results indicating that "residents forming tenant-owners associations have more trust in neighbors in the neighborhood."
 
-
 # Sample Population and Variables
 
-Our sample population includes adults in the US who participated in the IPUMS community civic engagement survey in November 2013.
+Our sample population includes adults in the US who participated in the IPUMS community civic engagement survey in November 2013. We aggregated this data to the county level.
 
 ## Continuous Variables (adapted from categorical variables)
 
 1. Percentage of renters in a given county. 
 
 We created this variable from individual responses to the IPUMS question of housing tenure, which had the following options:
-  -
+  *Owned or being bought
+  *Rented for cash
+  *Occupied without payment of cash rent
+  *Refused
+  *Don't know
+We aggregated these into two categories, ownership and rentership, then calculated the percentage of renters in a given county. 
 
 2. Trust in People in Neighborhood
+We created this variable from individual responses to the IPUMS question, "Trust in people in neighborhood", which had the following options:
 
-
+*Trust none of the people
+*Trust some of the people
+*Trust most of the people
+*Trust all of the people
+*Refused
+*Don't know
+*No Response
+We aggregated these into two categories, "trust" (some, most, all) and "not trust" (none, refused, don't know, no response), then calculated the percentage of trust in a given county. We decided to categorize the ambiguous responses into the "not trust" category due to the likelihood that they didn't respond out of that same lack of trust.
 
 ## Categorical Variables (adapted from continuous variables)
 
-1. Household Income
-
-
-
+We created our categorical variable from an originally continuous variable, Household Income, taken from the American Community Survey (median income at the county level). We binned the range of incomes into quartiles (titled "Bottom Quartile", "Lower Middle Quartile", "Middle Quartile", and "Upper Quartile").
 
 # Data Import
 
@@ -111,7 +120,7 @@ county_level <- svy_data %>%
 
 
 
-Get census data
+#Get census data
 
 ```{r}
 acs_vars <- load_variables(2019, "acs5")
@@ -222,6 +231,7 @@ summary <- tibble(
 
 kable(summary, digits = 2)
 ```
+Based on these t-tests, to a 95 percent confidence level, the average percentage of the population who trust their neighbors in a given county is 37 percent. Within the same confidence level, 33 percent of the population of a given county rents their home.
 
 ```{r}
 pretty_trust_hist <- trust_hist +
@@ -239,6 +249,7 @@ pretty_rent_hist <- rent_hist +
 grid.arrange(pretty_trust_hist, pretty_rent_hist,
              ncol = 2)
 ```
+Based on these histograms, both "percentage of people who trust their neighbors" and "percentage of renters" follow normal distribution curves.
 
 ### Categorical variables
 
@@ -273,6 +284,7 @@ summary_income <- tibble(`Income Quartiles` =
 
 kable(summary_income, digits = 0)
 ```
+We were surprised to see that this data isn't normally distributed, with skew towards the upper quartiles. One reason for this could be the low range of values for household income (acccording to the data set, the highest county median household income was around $70,000).
 ## Bar Charts
 
 ```{r}
@@ -290,7 +302,7 @@ ggplot(summary_income) +
                      labels = c("0", "20%", "40%", "60%", "80%")) +
   theme_bw()
 ```
-
+Here, you see that the data is skewed. 
 ## Bivariate Analysis
 
 ### continuous variables
@@ -299,32 +311,40 @@ ggplot(summary_income) +
 cor.test(~ mean + pct_rent, data = all_data)
 
 ```
+According to this correlation test, we can reject the null hypothesis that there is no difference in means between percentage of trust and percentage of renters: there is a negative correlation.
 
 ```{r}
 trust_model <- lm(mean ~ pct_rent, data = all_data)
 
 summary(trust_model)
 ```
-
+This produced similar results.
 ### Categorical Variable
 
 ```{r}
 t.test(x = all_data$mean[all_data$income_quartiles == "lower middle"], 
        y = all_data$mean[all_data$income_quartiles == "upper quartile"])
 ```
+Based on this two sample t-test, we cannot reject the null hypothesis at a 95 percent confidence level that there is no difference in the mean percentage of trust between lower middle and upper income quartiles. 
+
 ```{r}
 t.test(x = all_data$mean[all_data$income_quartiles == "lower middle"], 
        y = all_data$mean[all_data$income_quartiles == "middle quartile"])
 ```
+Based on this two sample t-test, we cannot reject the null hypothesis at a 95 percent confidence level that there is no difference in the mean percentage of trust between lower middle and middle income quartiles.
+
 ```{r}
 t.test(x = all_data$mean[all_data$income_quartiles == "bottom quartile"], 
        y = all_data$mean[all_data$income_quartiles == "upper quartile"])
 ```
+Based on this two sample t-test, we can reject the null hypothesis at a 95 percent confidence level that there is no difference in the mean percentage of trust between bottom and upper income quartiles.
 ```{r}
 income_model <- lm(mean ~ income_quartiles, data = all_data)
 
 summary(income_model)
 ```
+This bivariate regression shows that there is a statistically significant correlation between income levels and trust between neighbors at every median income quartile, with the strongest correlation with the upper quartile. As we hypothesized, this is a positive correlation: the higher the median income, the higher the levels of trust.
+
 ```{r}
 all_data <- all_data %>%
   mutate(income_quartiles = as.factor(income_quartiles)) %>%
@@ -334,6 +354,8 @@ income_model2 <- lm(mean ~ income_quartiles, all_data)
 
 summary(income_model2)
 ```
+We received the same output using different code.
+
 # Multivariate regression
 
 ```{r}
@@ -341,7 +363,7 @@ full_model <- lm(mean ~ pct_rent + income_quartiles, all_data)
 
 summary(full_model)
 ```
-
+According to this model, there is a statistically significant correlation between rates of rentership and trust and a statistically significant correlation between median income and trust.This multivariate regression model shows that on average, for every percentage increase in rentership in a county, there is a .30230 percent decrease in trust. As for the relationship between trust and median income, the largest increase in rates of trust is between the bottom quartile and the upper quartile, at 0.19548.
 
 
 # References
