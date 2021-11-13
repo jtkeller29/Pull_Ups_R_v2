@@ -29,7 +29,10 @@ Our sample population includes adults in the US who participated in the IPUMS co
 
 ## Continuous Variables (adapted from categorical variables)
 
-1. Housing Tenure
+1. Percentage of renters in a given county. 
+
+We created this variable from individual responses to the IPUMS question of housing tenure, which had the following options:
+  -
 
 2. Trust in People in Neighborhood
 
@@ -71,6 +74,7 @@ data <- read_ipums_micro(ddi)
 ```{r}
 data <- data %>% drop_na(CENEIGHCONF)
 ```
+
 
 
 ```{r}
