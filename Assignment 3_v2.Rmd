@@ -135,11 +135,11 @@ income_quartile <- quantile(county_data$median_income, na.rm = TRUE)
 income_quartile
 ```
 ```{r}
-county_data$income_quartiles <- cut(county_data$median_income, breaks = c(0, 24000, 31000, Inf),
-                               labels = c("bottom quartile", "middle quartile", "upper quartile"), na.rm = TRUE)
+#county_data$income_quartiles <- cut(county_data$median_income, breaks = c(0, 24000, 31000, Inf),
+                               #labels = c("bottom quartile", "middle quartile", "upper quartile"), na.rm = TRUE)
 
-county_data$income_class <- cut(county_data$median_income, breaks = c(0, 40100, 120400, Inf),
-                               labels = c("low", "middle", "upper"), na.rm = TRUE)
+county_data$income_quartiles <- cut(county_data$median_income, breaks = c(0, 23776.25, 26975.00, 30834.50, Inf),
+                               labels = c("bottom quartile", "lower middle", "middle quartile", "upper quartile"), na.rm = TRUE)
 ```
 
 
@@ -242,7 +242,54 @@ grid.arrange(pretty_trust_hist, pretty_rent_hist,
 
 ### Categorical variables
 
-Still cleaning our categorical variables after starting over from scratch.
+```{r}
+pct_lower <- t.test(all_data$income_quartiles == "bottom quartile")
+pct_low_mid <- t.test(all_data$income_quartiles == "lower middle")
+pct_middle <- t.test(all_data$income_quartiles == "middle quartile")
+pct_upper <- t.test(all_data$income_quartiles == "upper quartile")
+```
+
+```{r}
+summary_income <- tibble(`Income Quartiles` = 
+                              c("Lower",
+                                "Low Mid",
+                                "Middle",
+                                "Upper"),
+                            `Sample proportion` = 
+                              c(pct_lower$estimate * 100,
+                                pct_low_mid$estimate * 100,
+                                pct_middle$estimate *100,
+                                pct_upper$estimate * 100),
+                            `95-percent confidence - low` = 
+                              c(pct_lower$conf.int[1] * 100,
+                                pct_low_mid$conf.int[1] * 100,
+                                pct_middle$conf.int[1] * 100,
+                                pct_upper$conf.int[1] * 100),
+                            `95-percent confidence - high` = 
+                              c(pct_lower$conf.int[2] * 100,
+                                pct_low_mid$conf.int[2] * 100,
+                                pct_middle$conf.int[2] * 100,
+                                pct_upper$conf.int[2] * 100))
+
+kable(summary_income, digits = 0)
+```
+## Bar Charts
+
+```{r}
+ggplot(summary_income) +
+  geom_bar(aes(x = `Income Quartiles`, 
+               y = `Sample proportion`),
+           stat = "identity") +
+  geom_errorbar(aes(x = `Income Quartiles`, 
+               y = `Sample proportion`,
+               ymin = `95-percent confidence - low`,
+               ymax = `95-percent confidence - high`),
+           stat = "identity") +
+  scale_y_continuous(name = "Percent of counties",
+                     breaks = c(0, 20, 40, 60, 80),
+                     labels = c("0", "20%", "40%", "60%", "80%")) +
+  theme_bw()
+```
 
 ## Bivariate Analysis
 
@@ -261,7 +308,10 @@ summary(trust_model)
 
 ### Categorical Variables
 
-(Sorry that our categorical variable is still WIP)
+```{r}
+
+```
+
 
 
 # References
