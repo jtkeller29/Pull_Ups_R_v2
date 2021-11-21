@@ -68,6 +68,7 @@ library(survey)
 library(srvyr)
 library(ggplot2)
 library(gridExtra)
+library(jtools)
 ```
 
 
@@ -364,6 +365,28 @@ full_model <- lm(mean ~ pct_rent + income_quartiles, all_data)
 summary(full_model)
 ```
 According to this model, there is a statistically significant correlation between rates of rentership and trust and a statistically significant correlation between median income and trust.This multivariate regression model shows that on average, for every percentage increase in rentership in a county, there is a .30230 percent decrease in trust. As for the relationship between trust and median income, the largest increase in rates of trust is between the bottom quartile and the upper quartile, at 0.19548.
+
+# Transformations
+
+## 1 - Mean Center Pct Renters
+
+```{r}
+centered_data <- all_data %>%
+  mutate(pct_rent = pct_rent - mean(pct_rent, na.rm=TRUE))
+
+
+centered_model <- lm(mean ~ pct_rent + income_quartiles, centered_data)
+
+export_summs(full_model, centered_model, 
+             error_format = "(p = {p.value})",
+             error_pos = "same",
+             model.names = c("Initial", "Centered"))
+```
+
+
+## 2 - Income to Quintiles
+
+## 3 - Income as Continuous
 
 
 # References
