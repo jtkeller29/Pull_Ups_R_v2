@@ -1,0 +1,470 @@
+---
+title: "Assignment 1: Research Questions"
+author: "Alicia Seeley, JT Keller, Alec Martinez"
+date: "10/20/2021"
+output: 
+  html_document:
+    theme: readable
+    toc: true
+    toc_depth: 4
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Research Question to Answer with Regression
+
+How, if at all, are housing tenure and income related to trust between neighbors? 
+
+# Prior Research
+
+We have identified two studies that show a positive relationship between housing tenure and different measures of social engagement. Levitten-Reid and Matthew (2018), using a sample from Canada, find "a positive association between home ownership and forms of bonding social capital". Similarly, Werner and Klingborg (2010), in a study conducted of Stockholm, Sweden, found results indicating that "residents forming tenant-owners associations have more trust in neighbors in the neighborhood."
+
+# Sample Population and Variables
+
+Our sample population includes adults in the US who participated in the IPUMS community civic engagement survey in November 2013. We aggregated this data to the county level.
+
+## Continuous Variables (adapted from categorical variables)
+
+1. Percentage of renters in a given county. 
+
+We created this variable from individual responses to the IPUMS question of housing tenure, which had the following options:
+  *Owned or being bought
+  *Rented for cash
+  *Occupied without payment of cash rent
+  *Refused
+  *Don't know
+We aggregated these into two categories, ownership and rentership, then calculated the percentage of renters in a given county. 
+
+2. Trust in People in Neighborhood
+We created this variable from individual responses to the IPUMS question, "Trust in people in neighborhood", which had the following options:
+
+*Trust none of the people
+*Trust some of the people
+*Trust most of the people
+*Trust all of the people
+*Refused
+*Don't know
+*No Response
+We aggregated these into two categories, "trust" (some, most, all) and "not trust" (none, refused, don't know, no response), then calculated the percentage of trust in a given county. We decided to categorize the ambiguous responses into the "not trust" category due to the likelihood that they didn't respond out of that same lack of trust.
+
+## Categorical Variables (adapted from continuous variables)
+
+We created our categorical variable from an originally continuous variable, Household Income, taken from the American Community Survey (median income at the county level). We binned the range of incomes into quartiles (titled "Bottom Quartile", "Lower Middle Quartile", "Middle Quartile", and "Upper Quartile").
+
+# Data Import
+
+## Load Libraries
+
+```{r, message=FALSE}
+library(tidyverse)
+library(tidycensus)
+library(readxl)
+library(knitr)
+library(ipumsr)
+library(survey)
+library(srvyr)
+library(ggplot2)
+library(gridExtra)
+library(jtools)
+library(interactions)
+```
+
+
+## Read in .dat file from IPUMS
+
+```{r, message=FALSE, warning=FALSE}
+ddi <- read_ipums_ddi("cps_00004.xml")
+data <- read_ipums_micro(ddi)
+```
+
+# Clean Data
+
+```{r}
+data <- data %>% drop_na(CENEIGHCONF)
+```
+
+
+
+```{r}
+data <- data %>% 
+  mutate(CENEIGHCONF1 = case_when(`CENEIGHCONF` == 0 ~ "NIU",
+                          `CENEIGHCONF` == 1 ~ "Trust none of the People",
+                          `CENEIGHCONF` == 2 ~ "Trust some of the People",
+                          `CENEIGHCONF` == 3 ~ "Trust most of the People",
+                          `CENEIGHCONF` == 6 ~ "Trust all of the People",
+                          `CENEIGHCONF` == 96 ~ "Refused",
+                          `CENEIGHCONF` == 97 ~ "Don't know",
+                          `CENEIGHCONF` == 98 ~ "No Response",
+                          `CENEIGHCONF` == 99 ~ "NIU",
+                          TRUE ~ "unknown"))
+```
+
+
+```{r}
+data_subset <- data %>%
+  filter(CENEIGHCONF1 != "NIU") %>%
+  mutate(conf_2level = case_when(CENEIGHCONF1 == "Trust most of the People" ~ TRUE,
+                                 CENEIGHCONF1 == "Trust all of the People" ~ TRUE,
+                                 TRUE ~ FALSE))
+
+svy_data <- data_subset %>%
+  as_survey_design(weights = WTFINL)
+
+
+county_level <- svy_data %>%
+  group_by(COUNTY) %>%
+  srvyr::summarize(mean = survey_mean(conf_2level),
+                   sample = n()) 
+```
+
+
+
+#Get census data
+
+```{r}
+acs_vars <- load_variables(2019, "acs5")
+```
+
+
+```{r}
+county_data <- get_acs(geography = "county", variables = c("B25003_003", "B25003_001", "B06011_001"), output = 'wide') %>%
+  mutate(pct_rent = B25003_003E / B25003_001E)
+
+```
+```{r}
+county_data <- county_data %>% 
+  rename("median_income" = "B06011_001E")
+
+```
+
+```{r}
+income_quartile <- quantile(county_data$median_income, na.rm = TRUE)
+
+income_quartile
+```
+
+```{r}
+income_quintile <- quantile(county_data$median_income, probs = seq(0,1,1/5), na.rm = TRUE)
+
+income_quintile
+```
+```{r}
+county_data$income_quintiles <- cut(county_data$median_income, breaks = c(0, 22891.4, 25801.2, 28409, 31553.4, Inf),
+                                    labels = c("bottom", "lower", "middle", "upper", "top"), na.rm = TRUE)
+```
+
+
+```{r}
+#county_data$income_quartiles <- cut(county_data$median_income, breaks = c(0, 24000, 31000, Inf),
+                               #labels = c("bottom quartile", "middle quartile", "upper quartile"), na.rm = TRUE)
+
+county_data$income_quartiles <- cut(county_data$median_income, breaks = c(0, 23776.25, 26975.00, 30834.50, Inf),
+                               labels = c("bottom quartile", "lower middle", "middle quartile", "upper quartile"), na.rm = TRUE)
+```
+
+
+```{r}
+county_level <- county_level %>% 
+mutate(GEOID = case_when(str_length(as.character(COUNTY)) == 5 ~ 
+                            as.character(COUNTY),
+                          str_length(as.character(COUNTY)) == 4 ~
+                            paste("0", COUNTY, sep=""),
+                          TRUE ~ "not a county")) %>%
+  filter(GEOID != "not a county")
+```
+
+### FIX 4-digit FIPS codes by putting the leading zeros back on them,
+### the resulting FIPS code needs to be a string (as.character())
+### Name the resulting FIPS code GEOID
+
+
+
+```{r}
+all_data <- left_join(county_level, county_data)
+
+```
+
+```{r}
+kable(head(all_data))
+```
+
+## Descriptive Statistics
+
+### Continuous Variables
+
+
+```{r}
+rent_ttest <- t.test(all_data$pct_rent)
+
+trust_ttest <- t.test(all_data$mean)
+```
+
+```{r}
+rent_quartiles <- quantile(all_data$pct_rent, na.rm = TRUE)
+trust_quartiles <- quantile(all_data$mean, na.rm = TRUE)
+```
+
+```{r}
+rent_sd <- sd(all_data$pct_rent, na.rm = TRUE)
+trust_sd <- sd(all_data$mean, na.rm = TRUE)
+```
+
+```{r}
+rent_hist <- ggplot(all_data) +
+  geom_histogram(aes(x = pct_rent),
+                 bins = 30)
+```
+
+```{r}
+trust_hist <- ggplot(all_data) +
+  geom_histogram(aes(x = mean),
+                 bins = 30)
+```
+
+```{r}
+summary <- tibble(
+  Variable = c("Percentage of people who trust their neighbors (by county)", 
+               "Percentage of renters (by county)"),
+  `Sample mean` = c(trust_ttest$estimate,
+                    rent_ttest$estimate),
+  `Population mean (95% confidence) - low` = 
+    c(trust_ttest$conf.int[1],
+      rent_ttest$conf.int[1]),
+  `Population mean (95% confidence) - high` =
+    c(trust_ttest$conf.int[2],
+      rent_ttest$conf.int[2]),
+  Median = c(trust_quartiles[3],
+             rent_quartiles[3]),
+  `Interquartile range` = c(trust_quartiles[4] - trust_quartiles[2],
+                            rent_quartiles[4] - rent_quartiles[2]),
+  `Standard deviation` = c(trust_sd,
+                          rent_sd))
+
+kable(summary, digits = 2)
+```
+Based on these t-tests, to a 95 percent confidence level, the average percentage of the population who trust their neighbors in a given county is 37 percent. Within the same confidence level, 33 percent of the population of a given county rents their home.
+
+```{r}
+pretty_trust_hist <- trust_hist +
+  theme_bw() +
+  scale_x_continuous(name = "percentage of ppl who trust neighbors") +
+  scale_y_continuous(name = "Number of counties") +
+  theme(axis.text.x = element_text(angle = 90))
+
+pretty_rent_hist <- rent_hist +
+  theme_bw() + 
+  scale_x_continuous(name = "Percentage of renters") +
+  scale_y_continuous(name = "Number of counties") +
+  theme(axis.text.x = element_text(angle = 90))
+
+grid.arrange(pretty_trust_hist, pretty_rent_hist,
+             ncol = 2)
+```
+Based on these histograms, both "percentage of people who trust their neighbors" and "percentage of renters" follow normal distribution curves.
+
+### Categorical variables
+
+```{r}
+pct_lower <- t.test(all_data$income_quartiles == "bottom quartile")
+pct_low_mid <- t.test(all_data$income_quartiles == "lower middle")
+pct_middle <- t.test(all_data$income_quartiles == "middle quartile")
+pct_upper <- t.test(all_data$income_quartiles == "upper quartile")
+```
+
+```{r}
+summary_income <- tibble(`Income Quartiles` = 
+                              c("Lower",
+                                "Low Mid",
+                                "Middle",
+                                "Upper"),
+                            `Sample proportion` = 
+                              c(pct_lower$estimate * 100,
+                                pct_low_mid$estimate * 100,
+                                pct_middle$estimate *100,
+                                pct_upper$estimate * 100),
+                            `95-percent confidence - low` = 
+                              c(pct_lower$conf.int[1] * 100,
+                                pct_low_mid$conf.int[1] * 100,
+                                pct_middle$conf.int[1] * 100,
+                                pct_upper$conf.int[1] * 100),
+                            `95-percent confidence - high` = 
+                              c(pct_lower$conf.int[2] * 100,
+                                pct_low_mid$conf.int[2] * 100,
+                                pct_middle$conf.int[2] * 100,
+                                pct_upper$conf.int[2] * 100))
+
+kable(summary_income, digits = 0)
+```
+We were surprised to see that this data isn't normally distributed, with skew towards the upper quartiles. One reason for this could be the low range of values for household income (acccording to the data set, the highest county median household income was around $70,000).
+## Bar Charts
+
+```{r}
+ggplot(summary_income) +
+  geom_bar(aes(x = `Income Quartiles`, 
+               y = `Sample proportion`),
+           stat = "identity") +
+  geom_errorbar(aes(x = `Income Quartiles`, 
+               y = `Sample proportion`,
+               ymin = `95-percent confidence - low`,
+               ymax = `95-percent confidence - high`),
+           stat = "identity") +
+  scale_y_continuous(name = "Percent of counties",
+                     breaks = c(0, 20, 40, 60, 80),
+                     labels = c("0", "20%", "40%", "60%", "80%")) +
+  theme_bw()
+```
+Here, you see that the data is skewed. 
+## Bivariate Analysis
+
+### continuous variables
+
+```{r}
+cor.test(~ mean + pct_rent, data = all_data)
+
+```
+According to this correlation test, we can reject the null hypothesis that there is no difference in means between percentage of trust and percentage of renters: there is a negative correlation.
+
+```{r}
+trust_model <- lm(mean ~ pct_rent, data = all_data)
+
+summary(trust_model)
+```
+This produced similar results.
+### Categorical Variable
+
+```{r}
+t.test(x = all_data$mean[all_data$income_quartiles == "lower middle"], 
+       y = all_data$mean[all_data$income_quartiles == "upper quartile"])
+```
+Based on this two sample t-test, we cannot reject the null hypothesis at a 95 percent confidence level that there is no difference in the mean percentage of trust between lower middle and upper income quartiles. 
+
+```{r}
+t.test(x = all_data$mean[all_data$income_quartiles == "lower middle"], 
+       y = all_data$mean[all_data$income_quartiles == "middle quartile"])
+```
+Based on this two sample t-test, we cannot reject the null hypothesis at a 95 percent confidence level that there is no difference in the mean percentage of trust between lower middle and middle income quartiles.
+
+```{r}
+t.test(x = all_data$mean[all_data$income_quartiles == "bottom quartile"], 
+       y = all_data$mean[all_data$income_quartiles == "upper quartile"])
+```
+Based on this two sample t-test, we can reject the null hypothesis at a 95 percent confidence level that there is no difference in the mean percentage of trust between bottom and upper income quartiles.
+```{r}
+income_model <- lm(mean ~ income_quartiles, data = all_data)
+
+summary(income_model)
+```
+This bivariate regression shows that there is a statistically significant correlation between income levels and trust between neighbors at every median income quartile, with the strongest correlation with the upper quartile. As we hypothesized, this is a positive correlation: the higher the median income, the higher the levels of trust.
+
+```{r}
+all_data <- all_data %>%
+  mutate(income_quartiles = as.factor(income_quartiles)) %>%
+  mutate(income_quartiles = relevel(income_quartiles, "bottom quartile"))
+
+income_model2 <- lm(mean ~ income_quartiles, all_data)
+
+summary(income_model2)
+```
+We received the same output using different code.
+
+# Multivariate regression
+
+```{r}
+full_model <- lm(mean ~ pct_rent + income_quartiles, all_data)
+
+summary(full_model)
+```
+According to this model, there is a statistically significant correlation between rates of rentership and trust and a statistically significant correlation between median income and trust.This multivariate regression model shows that on average, for every percentage increase in rentership in a county, there is a .30230 percent decrease in trust. As for the relationship between trust and median income, the largest increase in rates of trust is between the bottom quartile and the upper quartile, at 0.19548.
+
+# Transformations
+
+We are generating three transformations: Mean Centering Percentage of Renters, Breaking income into quintiles, and using income as a continuous rather than a categorical variable.
+
+We are doing this because, as stated above, our dataset overrepresents the highest income bracket. We wanted to see if reformatting our income through the following transformations would remedy this.
+
+## 1 - Mean Center Pct Renters
+
+```{r}
+centered_data <- all_data %>%
+  mutate(pct_rent = pct_rent - mean(pct_rent, na.rm=TRUE))
+
+
+centered_model <- lm(mean ~ pct_rent + income_quartiles, centered_data)
+
+export_summs(full_model, centered_model, 
+             error_format = "(p = {p.value})",
+             error_pos = "same",
+             model.names = c("Initial", "Centered"))
+```
+We mean centered percentage of renters as an exercise exploring how the coefficients change in the transformed model. The only change was the intercept, from 0.33 to 0.22. This indicates that in a county that has zero renters, we would expect the rate of trust to be 0.33, while in a county with average renters, the expected rate of trust is 0.22.
+
+## 2 - Income to Quintiles
+
+```{r}
+quintile_model <- lm(mean ~ pct_rent + income_quintiles, all_data)
+
+export_summs(full_model, quintile_model, 
+             error_format = "(p = {p.value})",
+             error_pos = "same",
+             model.names = c("Initial", "Quintiles"))
+```
+
+This tranformation gave us an almost negligible improvement in model fit. All the p values remain statistically significant, other than comparing the bottom quintile to lower quintile. This implies that moving from the bottom to the lower income quintile will not have an affect on the level of trust in one's neighbors.
+
+## 3 - Income as Continuous
+```{r}
+continuous_model <- lm(mean ~ pct_rent + median_income, all_data)
+
+export_summs(quintile_model, continuous_model, 
+             error_format = "(p = {p.value})",
+             error_pos = "same",
+             model.names = c("Quintile", "Continuous"))
+```
+This transformation made the model less meaningful, given that income as a continuous variable is measured in such small increments. Therefore, an incremental change of one dollar shows no impact on level of trust, whereas an increase from the middle quintile to the upper quintile will have a much more obvious impact.
+
+```{r}
+summary(full_model)
+```
+
+
+# Interactions
+```{r}
+coeff_names_interaction <- c("Constant: lowest income quartile" = "(Intercept)",
+                 "Percentage of renters" = "pct_rent",
+                 "Lower middle income level" = "income_quartileslower middle",
+                 "middle quartile income level" = "income_quartilesmiddle quartile",
+                 "upper quartile income level" = "income_quartilesupper quartile")
+                   
+                   
+interaction_model <- lm(mean ~ pct_rent + income_quartiles + pct_rent*income_quartiles, all_data)
+
+summary(interaction_model)
+```
+
+```{r}
+export_summs(full_model, interaction_model,
+             error_format = "(p = {p.value})",
+             error_pos = "same",
+             model.names = c("Regular model",
+                             "Interaction model"))
+```
+  In creating and comparing our interaction model, we find that including an interaction term between our two independent variables slightly improves the model fit. However, none of the coefficients among our interaction terms are statistically significant (compared to our regular model, in which all coefficients are statistically significant). It would perhaps be more informative to stick with our regular model.
+  
+```{r}
+interact_plot(interaction_model, pred = pct_rent, modx = income_quartiles,
+              interval = TRUE) +
+  scale_x_continuous(name = "percentage renters") +
+  scale_y_continuous(name = "percentage of ppl who trust neighbors")
+```
+  The wide confidence intervals show that our interaction terms are not statistically significant, and we cannot claim with any level of certainty that there is any correlation.
+
+# References
+
+Werner, Inga Britt, and Kerstin Klingborg. "Studying Social Capital In Housing Neighborhoods-Does Tenure Matter?." (2010).
+
+Leviten-Reid, Catherine, and Rebecca A. Matthew. "Housing tenure and neighbourhood social capital." Housing, Theory and Society 35, no. 3 (2018): 300-328.
+
+Sarah Flood, Miriam King, Renae Rodgers, Steven Ruggles, J. Robert Warren and Michael Westberry. Integrated Public Use Microdata Series, Current Population Survey: Version 9.0 [dataset]. Minneapolis, MN: IPUMS, 2021. https://doi.org/10.18128/D030.V9.0
